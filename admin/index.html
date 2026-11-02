@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Domum Admin</title>
+<meta name="theme-color" content="#6E7051">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Domum Admin">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="../icono-180.png">
+<link rel="icon" type="image/png" sizes="32x32" href="../icono-32.png">
+<style>
+  html, body { margin: 0; height: 100%; background: #6E7051; overflow: hidden; }
+  body { padding-top: env(safe-area-inset-top); box-sizing: border-box; }
+  iframe { display: block; width: 100%; height: 100%; border: 0; background: #F4F0E6; }
+</style>
+</head>
+<body>
+<iframe id="app" title="Domum Admin" allow="camera"></iframe>
+<script>
+  // Página puente: le da ícono y nombre a la app de Apps Script en la pantalla de inicio.
+  const APP = 'https://script.google.com/macros/s/AKfycbxnIooF2NZvPpItIDihOokP0z2GDNAZ8ukLg-Qk_lD_aO46yRaFV25ah_UIvQRIErKY0A/exec';
+  let casa = null;
+  try {
+    if (casa) localStorage.setItem('casa', casa);
+    else casa = localStorage.getItem('casa');
+  } catch (e) {}
+  document.getElementById('app').src = APP + '?vista=admin';
+</script>
+</body>
+</html>
