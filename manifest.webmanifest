@@ -1,6 +1,6 @@
 {
-  "name": "Inventario Domum",
-  "short_name": "Inventario Domum",
+  "name": "Domum Living",
+  "short_name": "Domum Living",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
