@@ -42,7 +42,8 @@
     if (casa) localStorage.setItem('casa', casa);
     else casa = localStorage.getItem('casa');
   } catch (e) {}
-  document.getElementById('app').src = APP + '?vista=admin';
+  // El parámetro "v" cambia en cada apertura para que el iPhone no muestre una versión guardada de la app.
+  document.getElementById('app').src = APP + '?vista=admin&v=' + Date.now();
 
   // Face ID (o el código del celular) para borrar tickets. La app de Google pregunta por postMessage;
   // el botón lo toca la persona aquí arriba, porque iPhone solo pide la cara desde esta página.
