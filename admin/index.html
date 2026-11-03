@@ -16,10 +16,24 @@
   html, body { margin: 0; height: 100%; background: #222220; overflow: hidden; }
   body { padding-top: env(safe-area-inset-top); box-sizing: border-box; }
   iframe { display: block; width: 100%; height: 100%; border: 0; background: #F4F0E6; }
+  #cara { position: fixed; inset: 0; background: rgba(34,34,32,.6); display: none; align-items: center; justify-content: center; padding: 20px;
+    font-family: system-ui, sans-serif; }
+  #cara.abierto { display: flex; }
+  #cara .caja { background: #FFFDF8; border-radius: 18px; padding: 22px; max-width: 360px; width: 100%; text-align: center; color: #222220; }
+  #cara h2 { margin: 6px 0 6px; font-size: 19px; } #cara p { margin: 0 0 16px; font-size: 14px; color: #6b6a63; }
+  #cara button { display: block; width: 100%; border: 0; border-radius: 12px; padding: 14px; font-weight: 800; font-size: 15px; margin-top: 8px; }
+  #caraOk { background: #C2452D; color: #fff; } #caraNo { background: transparent; border: 2px solid #d8cfb8 !important; color: #222220; }
 </style>
 </head>
 <body>
 <iframe id="app" title="Domum Admin" allow="camera"></iframe>
+<div id="cara"><div class="caja">
+  <div style="font-size:40px">🔐</div>
+  <h2 id="caraTitulo">Confirma que eres tú</h2>
+  <p id="caraTexto"></p>
+  <button id="caraOk">Confirmar con Face ID</button>
+  <button id="caraNo">Cancelar</button>
+</div></div>
 <script>
   // Página puente: le da ícono y nombre a la app de Apps Script en la pantalla de inicio.
   const APP = 'https://script.google.com/macros/s/AKfycbxnIooF2NZvPpItIDihOokP0z2GDNAZ8ukLg-Qk_lD_aO46yRaFV25ah_UIvQRIErKY0A/exec';
@@ -29,6 +43,61 @@
     else casa = localStorage.getItem('casa');
   } catch (e) {}
   document.getElementById('app').src = APP + '?vista=admin';
+
+  // Face ID (o el código del celular) para borrar tickets. La app de Google pregunta por postMessage;
+  // el botón lo toca la persona aquí arriba, porque iPhone solo pide la cara desde esta página.
+  const CLAVE_CARA = 'faceid_credencial';
+  const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+  const deB64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+  const azar = n => crypto.getRandomValues(new Uint8Array(n));
+  const caraDisponible = () => !!(window.PublicKeyCredential && navigator.credentials);
+  const leerCred = () => { try { return localStorage.getItem(CLAVE_CARA); } catch (e) { return null; } };
+
+  async function verificarCara() {
+    const guardada = leerCred();
+    if (!guardada) {
+      // Primera vez en este celular: crea la llave; iPhone la protege con Face ID o el código.
+      const c = await navigator.credentials.create({ publicKey: {
+        rp: { name: 'Domum Admin' }, user: { id: azar(16), name: 'Juan Pablo', displayName: 'Juan Pablo' },
+        challenge: azar(32), pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+        authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'discouraged' },
+        timeout: 60000 } });
+      try { localStorage.setItem(CLAVE_CARA, b64(c.rawId)); } catch (e) {}
+      return true;
+    }
+    const a = await navigator.credentials.get({ publicKey: {
+      challenge: azar(32), allowCredentials: [{ type: 'public-key', id: deB64(guardada) }],
+      userVerification: 'required', timeout: 60000 } });
+    // Bit 2 de las banderas: el celular verificó a la persona (cara, huella o código).
+    return !!(new Uint8Array(a.response.authenticatorData)[32] & 4);
+  }
+
+  const capa = document.getElementById('cara');
+  let pendiente = null;
+  function responder(datos) {
+    if (!pendiente) return;
+    pendiente.fuente.postMessage({ domum: 'faceid', n: pendiente.n, ...datos }, pendiente.origen);
+    pendiente = null; capa.classList.remove('abierto');
+  }
+  document.getElementById('caraNo').onclick = () => responder({ ok: false, error: 'Cancelado.' });
+  document.getElementById('caraOk').onclick = async () => {
+    try { responder(await verificarCara() ? { ok: true } : { ok: false, error: 'El celular no verificó tu identidad.' }); }
+    catch (e) { responder({ ok: false, error: 'No se pudo usar Face ID: ' + (e.message || e.name) }); }
+  };
+  addEventListener('message', e => {
+    const d = e.data;
+    if (!d || d.domum !== 'faceid') return;
+    let host = ''; try { host = new URL(e.origin).hostname; } catch (err) {}
+    if (!/(^|\.)googleusercontent\.com$|(^|\.)google\.com$/.test(host)) return;
+    if (d.tipo === 'hay') return e.source.postMessage({ domum: 'faceid', n: d.n, disponible: caraDisponible() }, e.origin);
+    if (d.tipo === 'confirmar') {
+      if (pendiente) responder({ ok: false, error: 'Cancelado.' });
+      pendiente = { fuente: e.source, origen: e.origin, n: d.n };
+      document.getElementById('caraTitulo').textContent = leerCred() ? 'Confirma que eres tú' : 'Activa Face ID en este celular';
+      document.getElementById('caraTexto').textContent = `Para borrar el ticket ${String(d.ticket || '')} por completo.`;
+      capa.classList.add('abierto');
+    }
+  });
 </script>
 </body>
 </html>
